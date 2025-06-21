@@ -360,7 +360,7 @@
         });
 
         printBtn.addEventListener('click', () => {
-            let printHTML = `<div class="p-8"><h1 class="text-3xl font-bold mb-6 text-center">My Weekly Meal Plan</h1><div class="grid grid-cols-3 gap-4">`;
+            let printHTML = `<div class="p-8"><h1 class="text-3xl font-bold mb-6 text-center">Indian Weekly Meal Plan</h1><div class="grid grid-cols-3 gap-4">`;
             days.forEach(day => {
                 const recipeId = weeklyPlan[day];
                 const recipe = recipeId ? allRecipes.find(r => r.id === recipeId) : null;
