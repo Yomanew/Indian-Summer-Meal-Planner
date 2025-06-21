@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Summer Meal Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .recipe-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: grab;
+        }
+        .recipe-card:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+        .day-planner {
+            transition: background-color 0.2s;
+            min-height: 120px;
+        }
+        .day-planner.drag-over {
+            background-color: #d1fae5; /* A light green to indicate a valid drop zone */
+            border-style: dashed;
+        }
+        .favorite-btn {
+            transition: transform 0.2s;
+        }
+        .favorite-btn.favorited {
+            color: #ef4444; /* Red for favorited */
+            transform: scale(1.2);
+        }
+        .placeholder {
+            height: 100px;
+            background: #f1f5f9;
+            border: 2px dashed #cbd5e1;
+            border-radius: 0.5rem;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-section, #print-section * {
+                visibility: visible;
+            }
+            #print-section {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
+        <!-- HEADER -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-900">My Summer Meal Planner</h1>
+            <p class="mt-2 text-lg text-slate-600">Save your favorite recipes and plan your week!</p>
+        </div>
+
+        <!-- TABS -->
+        <div class="mb-6 flex justify-center border-b border-slate-200">
+            <button id="tab-all" class="tab-btn px-6 py-3 font-semibold text-emerald-600 border-b-2 border-emerald-600">All Recipes</button>
+            <button id="tab-favorites" class="tab-btn px-6 py-3 font-semibold text-slate-500">My Favorites (<span id="fav-count">0</span>)</button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- LEFT COLUMN: RECIPE LIST -->
+            <div class="lg:col-span-1">
+                <div id="recipe-list-container" class="space-y-4">
+                    <!-- Recipes will be dynamically inserted here -->
+                </div>
+                 <div id="favorites-empty-state" class="hidden text-center p-8 bg-white rounded-lg shadow-sm">
+                    <p class="text-slate-500">You haven't saved any favorites yet. Click the ❤️ on a recipe to add it!</p>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: WEEKLY PLANNER -->
+            <div class="lg:col-span-2">
+                <div class="bg-white p-6 rounded-2xl shadow-lg sticky top-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">Your Weekly Plan</h2>
+                        <div>
+                             <button id="printBtn" class="no-print bg-sky-500 text-white px-4 py-2 rounded-lg hover:bg-sky-600 transition-colors mr-2">🖨️ Print</button>
+                            <button id="clearPlanBtn" class="no-print bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">Clear Plan</button>
+                        </div>
+                    </div>
+                    <div id="weekly-planner" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <!-- Day planners will be dynamically inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- This section is for printing -->
+    <div id="print-section" class="hidden"></div>
+
+
+    <script>
+        const allRecipes = [
+            { id: 1, name: 'Lemon Herb Chicken', diet: 'Non-Vegetarian', type: 'Main Course', icon: '🍋' },
+            { id: 2, name: 'Cucumber Raita', diet: 'Vegetarian', type: 'Side', icon: '🥒' },
+            { id: 3, name: 'Tandoori Fish Tikka', diet: 'Non-Vegetarian', type: 'Main Course', icon: '🐟' },
+            { id: 4, name: 'Moong Dal Khichdi', diet: 'Vegetarian', type: 'Main Course', icon: '🍲' },
+            { id: 5, name: 'Curd Rice', diet: 'Vegetarian', type: 'Main Course', icon: '🍚' },
+            { id: 6, name: 'Baingan Bharta', diet: 'Vegetarian', type: 'Main Course', icon: '🍆' },
+            { id: 7, name: 'Sprouted Mung Bean Salad', diet: 'Vegetarian', type: 'Side', icon: '🥗' },
+            { id: 8, name: 'Paneer Tikka Skewers', diet: 'Vegetarian', type: 'Main Course', icon: '🧀' },
+            { id: 9, name: 'Kachumber Salad', diet: 'Vegetarian', type: 'Side', icon: '🍅' },
+            { id: 10, name: 'Lauki Ki Sabzi', diet: 'Vegetarian', type: 'Main Course', icon: '💚' },
+            { id: 11, name: 'Chicken Malai Tikka', diet: 'Non-Vegetarian', type: 'Main Course', icon: '🍗' },
+            { id: 12, name: 'Masala Chaas', diet: 'Vegetarian', type: 'Drink', icon: '🥛' },
+            { id: 13, name: 'Mint & Coriander Pulao', diet: 'Vegetarian', type: 'Main Course', icon: '🌿' },
+            { id: 14, name: 'Aamras (Mango Pulp)', diet: 'Vegetarian', type: 'Side', icon: '🥭' },
+            { id: 15, name: 'Sol Kadhi', diet: 'Vegetarian', type: 'Drink', icon: '🥥' }
+        ];
+
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        let favorites = [];
+        let weeklyPlan = {};
+
+        // DOM Elements
+        const recipeContainer = document.getElementById('recipe-list-container');
+        const weeklyPlannerContainer = document.getElementById('weekly-planner');
+        const favCountEl = document.getElementById('fav-count');
+        const tabAll = document.getElementById('tab-all');
+        const tabFavorites = document.getElementById('tab-favorites');
+        const favoritesEmptyState = document.getElementById('favorites-empty-state');
+        const clearPlanBtn = document.getElementById('clearPlanBtn');
+        const printBtn = document.getElementById('printBtn');
+        const printSection = document.getElementById('print-section');
+
+
+        // --- DATA HANDLING (localStorage) ---
+        function loadData() {
+            const savedFavorites = localStorage.getItem('summerMealFavorites');
+            const savedPlan = localStorage.getItem('summerMealPlan');
+            if (savedFavorites) {
+                favorites = JSON.parse(savedFavorites);
+            }
+            if (savedPlan) {
+                weeklyPlan = JSON.parse(savedPlan);
+            } else {
+                // Initialize empty plan if none exists
+                days.forEach(day => weeklyPlan[day] = null);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('summerMealFavorites', JSON.stringify(favorites));
+            localStorage.setItem('summerMealPlan', JSON.stringify(weeklyPlan));
+        }
+
+        // --- RENDER FUNCTIONS ---
+        function renderRecipeCard(recipe, isFavorite) {
+            return `
+                <div id="recipe-${recipe.id}" class="recipe-card bg-white p-4 rounded-lg shadow-sm border flex items-center justify-between" draggable="true">
+                    <div class="flex items-center">
+                        <span class="text-3xl mr-4">${recipe.icon}</span>
+                        <div>
+                            <h4 class="font-semibold">${recipe.name}</h4>
+                            <p class="text-sm text-slate-500">${recipe.diet} - ${recipe.type}</p>
+                        </div>
+                    </div>
+                    <button class="favorite-btn p-2 text-2xl text-slate-300 hover:text-red-400 ${isFavorite ? 'favorited' : ''}" data-id="${recipe.id}">❤️</button>
+                </div>
+            `;
+        }
+        
+        function renderRecipes(filter = 'all') {
+            recipeContainer.innerHTML = '';
+            const recipesToRender = filter === 'all' ? allRecipes : allRecipes.filter(r => favorites.includes(r.id));
+            
+            if (recipesToRender.length > 0) {
+                recipeContainer.classList.remove('hidden');
+                favoritesEmptyState.classList.add('hidden');
+                recipesToRender.forEach(recipe => {
+                    const isFavorite = favorites.includes(recipe.id);
+                    recipeContainer.innerHTML += renderRecipeCard(recipe, isFavorite);
+                });
+            } else {
+                 recipeContainer.classList.add('hidden');
+                 favoritesEmptyState.classList.remove('hidden');
+            }
+            
+            updateFavCount();
+            addDragListenersToCards();
+            addFavoriteClickListeners();
+        }
+
+        function renderWeeklyPlanner() {
+            weeklyPlannerContainer.innerHTML = '';
+            days.forEach(day => {
+                const recipeId = weeklyPlan[day];
+                const recipe = recipeId ? allRecipes.find(r => r.id === recipeId) : null;
+                const content = recipe 
+                    ? `<div id="planned-${recipe.id}" class="recipe-card bg-white p-4 rounded-lg shadow-sm border" draggable="true" data-recipe-id="${recipe.id}">
+                           <div class="flex items-center">
+                               <span class="text-2xl mr-3">${recipe.icon}</span>
+                               <span class="font-semibold text-sm">${recipe.name}</span>
+                           </div>
+                       </div>`
+                    : `<div class="placeholder flex items-center justify-center text-slate-400 text-sm">Drop recipe here</div>`;
+                
+                weeklyPlannerContainer.innerHTML += `
+                    <div class="day-planner-wrapper">
+                        <h4 class="font-bold mb-2">${day}</h4>
+                        <div class="day-planner p-2 bg-slate-100 rounded-lg border border-slate-200" data-day="${day}">
+                            ${content}
+                        </div>
+                    </div>
+                `;
+            });
+            addDragListenersToPlanner();
+        }
+        
+        function updateFavCount() {
+            favCountEl.textContent = favorites.length;
+        }
+
+        // --- EVENT HANDLERS & LOGIC ---
+        function toggleFavorite(e) {
+            const recipeId = parseInt(e.target.dataset.id);
+            if (favorites.includes(recipeId)) {
+                favorites = favorites.filter(id => id !== recipeId);
+                e.target.classList.remove('favorited');
+            } else {
+                favorites.push(recipeId);
+                e.target.classList.add('favorited');
+            }
+            saveData();
+            updateFavCount();
+
+            // If we are in the "Favorites" tab, re-render to remove the card
+            if (tabFavorites.classList.contains('text-emerald-600')) {
+                renderRecipes('favorites');
+            }
+        }
+
+        function handleDragStart(e) {
+            let recipeId;
+            if (e.target.dataset.recipeId) { // Dragging from planner
+                recipeId = e.target.dataset.recipeId;
+                const day = e.target.closest('.day-planner').dataset.day;
+                e.dataTransfer.setData('sourceDay', day);
+            } else { // Dragging from list
+                 recipeId = e.target.id.split('-')[1];
+            }
+            e.dataTransfer.setData('text/plain', recipeId);
+            e.target.style.opacity = '0.5';
+        }
+
+        function handleDragEnd(e) {
+            e.target.style.opacity = '1';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            const dropZone = e.target.closest('.day-planner');
+            if(dropZone) {
+                dropZone.classList.add('drag-over');
+            }
+        }
+        
+        function handleDragLeave(e) {
+            const dropZone = e.target.closest('.day-planner');
+            if(dropZone) {
+                dropZone.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const dropZone = e.target.closest('.day-planner');
+            if (!dropZone) return;
+            
+            dropZone.classList.remove('drag-over');
+            const recipeId = parseInt(e.dataTransfer.getData('text/plain'));
+            const targetDay = dropZone.dataset.day;
+            const sourceDay = e.dataTransfer.getData('sourceDay');
+            
+            // If dragging from another day, clear the source day
+            if (sourceDay && sourceDay !== targetDay) {
+                weeklyPlan[sourceDay] = null;
+            }
+
+            weeklyPlan[targetDay] = recipeId;
+            saveData();
+            renderWeeklyPlanner();
+        }
+
+        // --- ATTACH LISTENERS ---
+        function addFavoriteClickListeners() {
+            document.querySelectorAll('.favorite-btn').forEach(btn => {
+                btn.addEventListener('click', toggleFavorite);
+            });
+        }
+        
+        function addDragListenersToCards() {
+             document.querySelectorAll('#recipe-list-container .recipe-card').forEach(card => {
+                card.addEventListener('dragstart', handleDragStart);
+                card.addEventListener('dragend', handleDragEnd);
+            });
+        }
+        
+        function addDragListenersToPlanner() {
+            document.querySelectorAll('.day-planner').forEach(planner => {
+                planner.addEventListener('dragover', handleDragOver);
+                planner.addEventListener('dragleave', handleDragLeave);
+                planner.addEventListener('drop', handleDrop);
+            });
+            document.querySelectorAll('#weekly-planner .recipe-card').forEach(card => {
+                card.addEventListener('dragstart', handleDragStart);
+                card.addEventListener('dragend', handleDragEnd);
+            });
+        }
+        
+        tabAll.addEventListener('click', () => {
+            tabAll.classList.add('text-emerald-600', 'border-emerald-600');
+            tabAll.classList.remove('text-slate-500');
+            tabFavorites.classList.remove('text-emerald-600', 'border-emerald-600');
+            tabFavorites.classList.add('text-slate-500');
+            renderRecipes('all');
+        });
+        
+        tabFavorites.addEventListener('click', () => {
+            tabFavorites.classList.add('text-emerald-600', 'border-emerald-600');
+            tabFavorites.classList.remove('text-slate-500');
+            tabAll.classList.remove('text-emerald-600', 'border-emerald-600');
+            tabAll.classList.add('text-slate-500');
+            renderRecipes('favorites');
+        });
+        
+        clearPlanBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear your entire weekly plan?')) {
+                days.forEach(day => weeklyPlan[day] = null);
+                saveData();
+                renderWeeklyPlanner();
+            }
+        });
+
+        printBtn.addEventListener('click', () => {
+            let printHTML = `<div class="p-8"><h1 class="text-3xl font-bold mb-6 text-center">My Weekly Meal Plan</h1><div class="grid grid-cols-3 gap-4">`;
+            days.forEach(day => {
+                const recipeId = weeklyPlan[day];
+                const recipe = recipeId ? allRecipes.find(r => r.id === recipeId) : null;
+                printHTML += `
+                    <div class="p-4 border rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">${day}</h3>
+                        <p class="text-slate-700">${recipe ? recipe.name : 'No meal planned'}</p>
+                    </div>
+                `;
+            });
+            printHTML += `</div></div>`;
+            printSection.innerHTML = printHTML;
+            window.print();
+        });
+
+
+        // --- INITIALIZATION ---
+        function init() {
+            loadData();
+            renderRecipes('all');
+            renderWeeklyPlanner();
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
